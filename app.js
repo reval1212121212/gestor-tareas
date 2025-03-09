@@ -453,13 +453,37 @@ try {
 
 // Inicialización del sistema de pestañas
 function initTabSystem() {
+    console.log('Inicializando sistema de pestañas...');
+    
     const tabButtons = document.querySelectorAll('.tab-btn');
     const tabPanes = document.querySelectorAll('.tab-pane');
     
+    console.log('Botones de pestañas encontrados:', tabButtons.length);
+    console.log('Paneles de pestañas encontrados:', tabPanes.length);
+    
+    if (tabButtons.length === 0 || tabPanes.length === 0) {
+        console.error('No se encontraron elementos de pestañas. Verificando DOM...');
+        setTimeout(initTabSystem, 1000); // Intentar nuevamente después de 1 segundo
+        return;
+    }
+    
+    // Limpiar cualquier event listener previo (es posible que se llame varias veces)
     tabButtons.forEach(button => {
-        button.addEventListener('click', function() {
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+    });
+    
+    // Obtener los botones nuevamente después de clonarlos
+    const refreshedTabButtons = document.querySelectorAll('.tab-btn');
+    
+    // Agregar event listeners a los botones
+    refreshedTabButtons.forEach(button => {
+        button.addEventListener('click', function(event) {
+            event.preventDefault();
+            console.log('Botón de pestaña cliqueado:', this.getAttribute('data-tab'));
+            
             // Quitar la clase 'active' de todos los botones y paneles
-            tabButtons.forEach(btn => btn.classList.remove('active'));
+            refreshedTabButtons.forEach(btn => btn.classList.remove('active'));
             tabPanes.forEach(pane => pane.classList.remove('active'));
             
             // Añadir la clase 'active' al botón clicado
@@ -467,68 +491,105 @@ function initTabSystem() {
             
             // Activar el panel correspondiente
             const tabId = this.getAttribute('data-tab');
-            document.getElementById(tabId).classList.add('active');
+            const targetPane = document.getElementById(tabId);
             
-            // Acciones específicas al cambiar a ciertas pestañas
-            if (tabId === 'tab-kanban') {
-                renderKanbanBoard();
-            } else if (tabId === 'tab-list') {
-                renderTasksList();
-            } else if (tabId === 'tab-calendar') {
-                renderCalendar();
-            } else if (tabId === 'tab-dashboard') {
-                renderDashboard();
+            if (targetPane) {
+                targetPane.classList.add('active');
+                
+                // Acciones específicas al cambiar a ciertas pestañas
+                if (tabId === 'tab-kanban') {
+                    renderKanbanBoard();
+                } else if (tabId === 'tab-list') {
+                    renderTasksList();
+                } else if (tabId === 'tab-calendar') {
+                    renderCalendar();
+                } else if (tabId === 'tab-dashboard') {
+                    renderDashboard();
+                }
+            } else {
+                console.error('No se encontró el panel de pestaña con ID:', tabId);
             }
         });
+        
+        console.log('Event listener agregado al botón:', button.getAttribute('data-tab'));
     });
+    
+    console.log('Sistema de pestañas inicializado correctamente');
 }
 
 // Funciones para Vista Kanban
 function renderKanbanBoard() {
-    console.log('Renderizando tablero Kanban...');
-    
-    // Obtener las columnas del tablero
-    const columns = document.querySelectorAll('.kanban-column-body');
-    
-    // Limpiar las columnas
-    columns.forEach(column => {
-        column.innerHTML = '';
-    });
-    
-    // Contador de tareas por columna
-    const taskCounters = {
-        'Pendiente': 0,
-        'En progreso': 0,
-        'En revisión': 0,
-        'Completada': 0
-    };
-    
-    // Distribuir las tareas en las columnas según su estado
-    tasks.forEach(task => {
-        // Incrementar el contador
-        if (taskCounters.hasOwnProperty(task.status)) {
-            taskCounters[task.status]++;
+    try {
+        console.log('Renderizando tablero Kanban...');
+        
+        // Obtener las columnas del tablero
+        const columns = document.querySelectorAll('.kanban-column-body');
+        
+        if (columns.length === 0) {
+            console.error('No se encontraron columnas para el tablero Kanban');
+            return;
         }
         
-        // Crear tarjeta para el tablero Kanban
-        const card = createKanbanCard(task);
+        // Limpiar las columnas
+        columns.forEach(column => {
+            column.innerHTML = '';
+        });
         
-        // Buscar la columna correspondiente
-        const column = document.querySelector(`.kanban-column-body[data-status="${task.status}"]`);
-        if (column) {
-            column.appendChild(card);
+        // Contador de tareas por columna
+        const taskCounters = {
+            'Pendiente': 0,
+            'En progreso': 0,
+            'En revisión': 0,
+            'Completada': 0
+        };
+        
+        // Distribuir las tareas en las columnas según su estado
+        tasks.forEach(task => {
+            try {
+                // Incrementar el contador
+                if (taskCounters.hasOwnProperty(task.status)) {
+                    taskCounters[task.status]++;
+                }
+                
+                // Crear tarjeta para el tablero Kanban
+                const card = createKanbanCard(task);
+                
+                // Buscar la columna correspondiente
+                const column = document.querySelector(`.kanban-column-body[data-status="${task.status}"]`);
+                if (column) {
+                    column.appendChild(card);
+                }
+            } catch (error) {
+                console.error('Error al renderizar tarea en Kanban:', error, task);
+            }
+        });
+        
+        // Actualizar los contadores de tareas en cada columna
+        for (const status in taskCounters) {
+            try {
+                const counter = document.querySelector(`.kanban-column-${status.replace(' ', '-')} .kanban-column-count`);
+                if (counter) {
+                    counter.textContent = taskCounters[status];
+                }
+            } catch (error) {
+                console.error('Error al actualizar contador de columna:', error, status);
+            }
         }
-    });
-    
-    // Actualizar los contadores de tareas en cada columna
-    for (const status in taskCounters) {
-        const counter = document.querySelector(`.kanban-column-${status.replace(' ', '-')} .kanban-column-count`);
-        if (counter) {
-            counter.textContent = taskCounters[status];
-        }
+        
+        // Asegurarse de que los botones de acción funcionen
+        document.querySelectorAll('.kanban-column-body .edit-btn').forEach(button => {
+            button.onclick = handleEditClick;
+        });
+        
+        document.querySelectorAll('.kanban-column-body .delete-btn').forEach(button => {
+            button.onclick = handleDeleteClick;
+        });
+        
+        console.log('Tablero Kanban renderizado correctamente');
+    } catch (error) {
+        console.error('Error al renderizar tablero Kanban:', error);
+        showNotification('Error al cargar vista Kanban', 'error');
     }
-    
-    console.log('Tablero Kanban renderizado correctamente');
 }
 
 function createKanbanCard(task) {
@@ -588,78 +649,87 @@ function getPriorityColor(priority) {
 
 // Funciones para Vista Lista
 function renderTasksList() {
-    console.log('Renderizando vista lista...');
-    
-    const tbody = document.getElementById('tasks-list-body');
-    if (!tbody) {
-        console.error('No se encontró el elemento para la lista de tareas');
-        return;
-    }
-    
-    // Limpiar la tabla
-    tbody.innerHTML = '';
-    
-    // Obtener filtros específicos de la vista lista
-    const statusFilter = document.getElementById('filterStatus-list').value;
-    const priorityFilter = document.getElementById('filterPriority-list').value;
-    const typeFilter = document.getElementById('filterType-list').value;
-    
-    // Filtrar tareas
-    let filteredTasks = [...tasks];
-    
-    if (statusFilter) {
-        filteredTasks = filteredTasks.filter(task => task.status === statusFilter);
-    }
-    
-    if (priorityFilter) {
-        filteredTasks = filteredTasks.filter(task => task.priority === priorityFilter);
-    }
-    
-    if (typeFilter) {
-        filteredTasks = filteredTasks.filter(task => task.type === typeFilter);
-    }
-    
-    // Si no hay tareas después de filtrar
-    if (filteredTasks.length === 0) {
-        const emptyRow = document.createElement('tr');
-        emptyRow.innerHTML = `<td colspan="7" style="text-align: center; padding: 20px;">No hay tareas disponibles</td>`;
-        tbody.appendChild(emptyRow);
-        return;
-    }
-    
-    // Renderizar cada tarea
-    filteredTasks.forEach(task => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${task.report || ''}</td>
-            <td>${task.type || ''}</td>
-            <td>${task.description ? (task.description.length > 30 ? task.description.substring(0, 30) + '...' : task.description) : ''}</td>
-            <td>${formatDate(task.date)}</td>
-            <td class="status-${(task.status || '').toLowerCase().replace(' ', '-')}">${task.status || ''}</td>
-            <td class="priority-${(task.priority || '').toLowerCase()}">${task.priority || ''}</td>
-            <td class="action-buttons">
-                <button class="btn btn-primary btn-small edit-btn" data-id="${task.id}">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-danger btn-small delete-btn" data-id="${task.id}">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        `;
+    try {
+        console.log('Renderizando vista lista...');
         
-        tbody.appendChild(row);
-    });
-    
-    // Añadir event listeners
-    document.querySelectorAll('#tasks-list-body .edit-btn').forEach(button => {
-        button.onclick = handleEditClick;
-    });
-    
-    document.querySelectorAll('#tasks-list-body .delete-btn').forEach(button => {
-        button.onclick = handleDeleteClick;
-    });
-    
-    console.log('Vista lista renderizada correctamente');
+        const tbody = document.getElementById('tasks-list-body');
+        if (!tbody) {
+            console.error('No se encontró el elemento para la lista de tareas');
+            return;
+        }
+        
+        // Limpiar la tabla
+        tbody.innerHTML = '';
+        
+        // Obtener filtros específicos de la vista lista
+        const statusFilter = document.getElementById('filterStatus-list')?.value || '';
+        const priorityFilter = document.getElementById('filterPriority-list')?.value || '';
+        const typeFilter = document.getElementById('filterType-list')?.value || '';
+        
+        // Filtrar tareas
+        let filteredTasks = [...tasks];
+        
+        if (statusFilter) {
+            filteredTasks = filteredTasks.filter(task => task.status === statusFilter);
+        }
+        
+        if (priorityFilter) {
+            filteredTasks = filteredTasks.filter(task => task.priority === priorityFilter);
+        }
+        
+        if (typeFilter) {
+            filteredTasks = filteredTasks.filter(task => task.type === typeFilter);
+        }
+        
+        // Si no hay tareas después de filtrar
+        if (filteredTasks.length === 0) {
+            const emptyRow = document.createElement('tr');
+            emptyRow.innerHTML = `<td colspan="7" style="text-align: center; padding: 20px;">No hay tareas disponibles</td>`;
+            tbody.appendChild(emptyRow);
+            return;
+        }
+        
+        // Renderizar cada tarea
+        filteredTasks.forEach(task => {
+            try {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${task.report || ''}</td>
+                    <td>${task.type || ''}</td>
+                    <td>${task.description ? (task.description.length > 30 ? task.description.substring(0, 30) + '...' : task.description) : ''}</td>
+                    <td>${formatDate(task.date)}</td>
+                    <td class="status-${(task.status || '').toLowerCase().replace(' ', '-')}">${task.status || ''}</td>
+                    <td class="priority-${(task.priority || '').toLowerCase()}">${task.priority || ''}</td>
+                    <td class="action-buttons">
+                        <button class="btn btn-primary btn-small edit-btn" data-id="${task.id}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-danger btn-small delete-btn" data-id="${task.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            } catch (error) {
+                console.error('Error al renderizar tarea en la lista:', error, task);
+            }
+        });
+        
+        // Añadir event listeners
+        document.querySelectorAll('#tasks-list-body .edit-btn').forEach(button => {
+            button.onclick = handleEditClick;
+        });
+        
+        document.querySelectorAll('#tasks-list-body .delete-btn').forEach(button => {
+            button.onclick = handleDeleteClick;
+        });
+        
+        console.log('Vista lista renderizada correctamente');
+    } catch (error) {
+        console.error('Error al renderizar vista lista:', error);
+        showNotification('Error al cargar vista Lista', 'error');
+    }
 }
 
 // Configurar filtros para la vista de lista
@@ -1181,16 +1251,118 @@ function renderTasksEvolutionChart() {
     console.log('Gráfico de evolución renderizado correctamente');
 }
 
-// Extiende la función de inicialización para incluir las nuevas características
-function extendedInitApp() {
-    // Inicializar el sistema de pestañas
-    initTabSystem();
+// Función para verificar y volver a aplicar los event listeners críticos
+function ensureEventListeners() {
+    console.log('Verificando event listeners críticos...');
     
-    // Configurar filtros para la vista lista
+    // Formulario principal
+    const taskForm = document.getElementById('taskForm');
+    if (taskForm) {
+        // Clonar el formulario para eliminar event listeners anteriores
+        const newForm = taskForm.cloneNode(true);
+        taskForm.parentNode.replaceChild(newForm, taskForm);
+        
+        // Agregar nuevamente el event listener
+        newForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            try {
+                handleFormSubmit(e);
+            } catch (error) {
+                console.error('Error en handleFormSubmit:', error);
+                showNotification('Error al procesar el formulario', 'error');
+            }
+            return false;
+        });
+        console.log('Event listener de formulario reconfigurado');
+    }
+    
+    // Botón de actualización
+    const updateTaskBtn = document.getElementById('updateTask');
+    if (updateTaskBtn) {
+        updateTaskBtn.onclick = handleTaskUpdate;
+        console.log('Event listener de botón de actualización reconfigurado');
+    }
+    
+    // Filtros de la vista principal
+    const filterStatus = document.getElementById('filterStatus');
+    const filterPriority = document.getElementById('filterPriority');
+    
+    if (filterStatus) {
+        filterStatus.onchange = applyFilters;
+        console.log('Event listener de filtro de estado reconfigurado');
+    }
+    
+    if (filterPriority) {
+        filterPriority.onchange = applyFilters;
+        console.log('Event listener de filtro de prioridad reconfigurado');
+    }
+    
+    // Filtros de la vista de lista
     setupListFilters();
     
-    // Configurar navegación del calendario
+    // Navegación del calendario
     setupCalendarNavigation();
+    
+    // Botón de prueba
+    const testBtn = document.getElementById('test-btn');
+    if (testBtn) {
+        testBtn.onclick = function() {
+            try {
+                // Crear tarea de prueba
+                const taskData = {
+                    id: Date.now().toString(),
+                    type: 'Desarrollo',
+                    report: 'Tarea de prueba',
+                    description: 'Esta es una tarea de prueba creada automáticamente para verificar el funcionamiento del sistema.',
+                    date: new Date().toISOString().split('T')[0],
+                    status: 'Pendiente',
+                    dependency: '',
+                    priority: 'Media'
+                };
+                
+                // Agregar tarea
+                tasks.push(taskData);
+                saveTasks();
+                renderTasks();
+                updateDependencyOptions();
+                
+                // Actualizar otras vistas si están activas
+                const activeTab = document.querySelector('.tab-btn.active');
+                if (activeTab) {
+                    const tabId = activeTab.getAttribute('data-tab');
+                    if (tabId === 'tab-kanban') {
+                        renderKanbanBoard();
+                    } else if (tabId === 'tab-list') {
+                        renderTasksList();
+                    } else if (tabId === 'tab-calendar') {
+                        renderCalendar();
+                    } else if (tabId === 'tab-dashboard') {
+                        renderDashboard();
+                    }
+                }
+                
+                // Mostrar notificación
+                showNotification('Tarea de prueba agregada correctamente', 'success');
+            } catch (error) {
+                console.error('Error al agregar tarea de prueba:', error);
+                showNotification('Error al agregar tarea de prueba', 'error');
+            }
+        };
+        console.log('Event listener de botón de prueba reconfigurado');
+    }
+    
+    console.log('Event listeners críticos verificados y reconfigurados');
+}
+
+// Extiende la función de inicialización para incluir las nuevas características
+function extendedInitApp() {
+    console.log('Iniciando extensiones de la aplicación...');
+    
+    // Asegurar que los event listeners críticos estén configurados
+    ensureEventListeners();
+    
+    // Inicializar el sistema de pestañas
+    initTabSystem();
     
     // Actualizar app status para indicar que las nuevas vistas están disponibles
     const appStatus = document.getElementById('app-status');
@@ -1202,16 +1374,24 @@ function extendedInitApp() {
 }
 
 // Extender la función original de inicialización
-const originalInitApp = initApp;
-initApp = function() {
-    originalInitApp();
+const originalInitApp = window.initApp;
+window.initApp = function() {
+    // Llamar a la función original primero
+    if (typeof originalInitApp === 'function') {
+        originalInitApp();
+    }
+    
+    // Luego inicializar nuestras extensiones
     extendedInitApp();
 };
 
-// Inicializar la aplicación cuando el DOM esté cargado
-document.addEventListener('DOMContentLoaded', initApp);
+// Asegurarnos de que nuestras extensiones se inicialicen incluso si la aplicación ya se ha cargado
+document.addEventListener('DOMContentLoaded', function() {
+    // Si la aplicación ya está inicializada, ejecutar nuestras extensiones
+    setTimeout(extendedInitApp, 500);
+});
 
-// Si la aplicación ya se ha inicializado, ejecutar la extensión
+// Si el documento ya está cargado, ejecutar directamente
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    setTimeout(extendedInitApp, 100);
+    setTimeout(extendedInitApp, 500);
 }

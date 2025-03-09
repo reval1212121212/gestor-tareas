@@ -14,6 +14,7 @@ let currentTaskId = null;
 
 // Inicialización de la aplicación
 function initApp() {
+    console.log('Inicializando la aplicación...');
     renderTasks();
     updateDependencyOptions();
     
@@ -25,19 +26,29 @@ function initApp() {
     
     // Establecer la fecha actual como valor predeterminado
     document.getElementById('taskDate').valueAsDate = new Date();
+    console.log('Aplicación inicializada correctamente');
 }
 
 // Guardar tareas en localStorage
 function saveTasks() {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
+    try {
+        localStorage.setItem('tasks', JSON.stringify(tasks));
+        console.log('Tareas guardadas en localStorage:', tasks);
+    } catch (error) {
+        console.error('Error al guardar en localStorage:', error);
+    }
 }
 
 // Renderizar la lista de tareas
 function renderTasks(filteredTasks = null) {
+    console.log('Renderizando tareas...');
     const tasksToRender = filteredTasks || tasks;
+    console.log('Tareas a renderizar:', tasksToRender);
+    
     tasksList.innerHTML = '';
     
     if (tasksToRender.length === 0) {
+        console.log('No hay tareas para mostrar');
         const emptyRow = document.createElement('tr');
         emptyRow.innerHTML = `<td colspan="8" style="text-align: center; padding: 20px;">No hay tareas disponibles</td>`;
         tasksList.appendChild(emptyRow);
@@ -65,6 +76,7 @@ function renderTasks(filteredTasks = null) {
     
     // Agregar event listeners a los botones de acción
     addActionButtonListeners();
+    console.log('Tareas renderizadas correctamente');
 }
 
 // Agregar event listeners a los botones de acción
@@ -80,6 +92,7 @@ function addActionButtonListeners() {
 
 // Manejar el envío del formulario
 function handleFormSubmit(e) {
+    console.log('Formulario enviado');
     e.preventDefault();
     
     const taskData = {
@@ -93,6 +106,8 @@ function handleFormSubmit(e) {
         priority: document.getElementById('taskPriority').value
     };
     
+    console.log('Datos de la nueva tarea:', taskData);
+    
     tasks.push(taskData);
     saveTasks();
     renderTasks();
@@ -102,6 +117,7 @@ function handleFormSubmit(e) {
     
     // Mostrar mensaje de éxito
     showNotification('Tarea agregada correctamente', 'success');
+    console.log('Tarea agregada y formulario reseteado');
 }
 
 // Manejar el clic en el botón de editar
@@ -277,4 +293,15 @@ function showNotification(message, type = 'info') {
 }
 
 // Iniciar la aplicación cuando el DOM esté cargado
-document.addEventListener('DOMContentLoaded', initApp); 
+console.log('Configurando evento DOMContentLoaded');
+document.addEventListener('DOMContentLoaded', initApp);
+console.log('Evento DOMContentLoaded configurado');
+
+// Comprobar si localStorage está disponible
+try {
+    localStorage.setItem('testLocalStorage', 'test');
+    localStorage.removeItem('testLocalStorage');
+    console.log('localStorage está disponible');
+} catch (error) {
+    console.error('localStorage no está disponible:', error);
+} 

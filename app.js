@@ -434,10 +434,27 @@ window.addTaskManual = function() {
         saveTasks();
         renderTasks();
         updateDependencyOptions();
+        
+        // Actualizar otras vistas según la pestaña activa
+        const activeTab = document.querySelector('.tab-btn.active');
+        if (activeTab) {
+            const tabId = activeTab.getAttribute('data-tab');
+            if (tabId === 'tab-kanban') {
+                renderKanbanBoard();
+            } else if (tabId === 'tab-list') {
+                renderTasksList();
+            } else if (tabId === 'tab-calendar') {
+                renderCalendar();
+            } else if (tabId === 'tab-dashboard') {
+                renderDashboard();
+            }
+        }
+        
         showNotification('Tarea de prueba agregada', 'success');
         return true;
     } catch (error) {
         console.error('Error al agregar tarea manual:', error);
+        showNotification('Error al agregar tarea de prueba', 'error');
         return false;
     }
 };
@@ -453,68 +470,9 @@ try {
 
 // Inicialización del sistema de pestañas
 function initTabSystem() {
-    console.log('Inicializando sistema de pestañas...');
-    
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    const tabPanes = document.querySelectorAll('.tab-pane');
-    
-    console.log('Botones de pestañas encontrados:', tabButtons.length);
-    console.log('Paneles de pestañas encontrados:', tabPanes.length);
-    
-    if (tabButtons.length === 0 || tabPanes.length === 0) {
-        console.error('No se encontraron elementos de pestañas. Verificando DOM...');
-        setTimeout(initTabSystem, 1000); // Intentar nuevamente después de 1 segundo
-        return;
-    }
-    
-    // Limpiar cualquier event listener previo (es posible que se llame varias veces)
-    tabButtons.forEach(button => {
-        const newButton = button.cloneNode(true);
-        button.parentNode.replaceChild(newButton, button);
-    });
-    
-    // Obtener los botones nuevamente después de clonarlos
-    const refreshedTabButtons = document.querySelectorAll('.tab-btn');
-    
-    // Agregar event listeners a los botones
-    refreshedTabButtons.forEach(button => {
-        button.addEventListener('click', function(event) {
-            event.preventDefault();
-            console.log('Botón de pestaña cliqueado:', this.getAttribute('data-tab'));
-            
-            // Quitar la clase 'active' de todos los botones y paneles
-            refreshedTabButtons.forEach(btn => btn.classList.remove('active'));
-            tabPanes.forEach(pane => pane.classList.remove('active'));
-            
-            // Añadir la clase 'active' al botón clicado
-            this.classList.add('active');
-            
-            // Activar el panel correspondiente
-            const tabId = this.getAttribute('data-tab');
-            const targetPane = document.getElementById(tabId);
-            
-            if (targetPane) {
-                targetPane.classList.add('active');
-                
-                // Acciones específicas al cambiar a ciertas pestañas
-                if (tabId === 'tab-kanban') {
-                    renderKanbanBoard();
-                } else if (tabId === 'tab-list') {
-                    renderTasksList();
-                } else if (tabId === 'tab-calendar') {
-                    renderCalendar();
-                } else if (tabId === 'tab-dashboard') {
-                    renderDashboard();
-                }
-            } else {
-                console.error('No se encontró el panel de pestaña con ID:', tabId);
-            }
-        });
-        
-        console.log('Event listener agregado al botón:', button.getAttribute('data-tab'));
-    });
-    
-    console.log('Sistema de pestañas inicializado correctamente');
+    console.log('Inicialización de pestañas desde app.js - ahora esta función está desactivada para evitar conflictos');
+    // La inicialización de pestañas ahora se maneja mediante un script independiente
+    return; // Salir sin hacer nada para evitar conflictos
 }
 
 // Funciones para Vista Kanban
@@ -1395,3 +1353,15 @@ document.addEventListener('DOMContentLoaded', function() {
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
     setTimeout(extendedInitApp, 500);
 }
+
+// Hacer disponible la función globalmente
+window.renderKanbanBoard = renderKanbanBoard;
+
+// Hacer disponible la función globalmente
+window.renderTasksList = renderTasksList;
+
+// Hacer disponible la función globalmente
+window.renderCalendar = renderCalendar;
+
+// Hacer disponible la función globalmente
+window.renderDashboard = renderDashboard;

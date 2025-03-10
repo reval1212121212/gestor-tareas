@@ -1,12 +1,12 @@
 // Elementos del DOM
-const taskForm = document.getElementById('taskForm');
-const tasksTable = document.getElementById('tasksTable');
-const tasksList = document.getElementById('tasksList');
-const addTaskBtn = document.getElementById('addTask');
-const updateTaskBtn = document.getElementById('updateTask');
-const filterStatus = document.getElementById('filterStatus');
-const filterPriority = document.getElementById('filterPriority');
-const taskDependency = document.getElementById('taskDependency');
+let taskForm;
+let tasksTable;
+let tasksList;
+let addTaskBtn;
+let updateTaskBtn;
+let filterStatus;
+let filterPriority;
+let taskDependency;
 
 // Variables globales
 let tasks = [];
@@ -38,6 +38,9 @@ const Storage = {
 // Inicialización de la aplicación - Versión unificada y simplificada
 function initApp() {
     console.log('Iniciando aplicación...');
+    
+    // Inicializar referencias a elementos DOM
+    initDOMReferences();
     
     // Cargar tareas desde almacenamiento
     const storedTasks = Storage.load('tasks');
@@ -71,8 +74,29 @@ function initApp() {
     console.log('Aplicación inicializada correctamente');
 }
 
+// Inicializar referencias a elementos DOM
+function initDOMReferences() {
+    console.log('Inicializando referencias DOM...');
+    taskForm = document.getElementById('taskForm');
+    tasksTable = document.getElementById('tasksTable');
+    tasksList = document.getElementById('tasksList') || document.getElementById('tasks-list-body');
+    addTaskBtn = document.getElementById('addTask');
+    updateTaskBtn = document.getElementById('updateTask');
+    filterStatus = document.getElementById('filterStatus');
+    filterPriority = document.getElementById('filterPriority');
+    taskDependency = document.getElementById('taskDependency');
+    
+    // Verificar elementos críticos
+    if (!taskForm) console.error('No se encontró el elemento taskForm');
+    if (!tasksList) console.error('No se encontró el elemento tasksList o tasks-list-body');
+    if (!addTaskBtn) console.error('No se encontró el elemento addTaskBtn');
+    if (!updateTaskBtn) console.error('No se encontró el elemento updateTaskBtn');
+}
+
 // Configurar todos los event listeners
 function setupEventListeners() {
+    console.log('Configurando event listeners...');
+    
     // Formulario principal
     if (taskForm) {
         taskForm.onsubmit = function(e) {
@@ -81,24 +105,32 @@ function setupEventListeners() {
             return false;
         };
         console.log('Event listener de formulario configurado');
+    } else {
+        console.error('No se pudo configurar el event listener del formulario - elemento no encontrado');
     }
     
     // Botones de acciones principales
     if (updateTaskBtn) {
-        updateTaskBtn.onclick = handleTaskUpdate;
+        updateTaskBtn.onclick = function(e) {
+            e.preventDefault();
+            handleTaskUpdate();
+        };
+        console.log('Event listener de botón de actualización configurado');
     }
     
     // Filtros
     if (filterStatus) {
         filterStatus.onchange = applyFilters;
+        console.log('Event listener de filtro de estado configurado');
     }
     
     if (filterPriority) {
         filterPriority.onchange = applyFilters;
+        console.log('Event listener de filtro de prioridad configurado');
     }
     
     // Botón de prueba (si existe)
-    const testConnBtn = document.getElementById('testConnection');
+    const testConnBtn = document.getElementById('test-btn');
     if (testConnBtn) {
         testConnBtn.onclick = function() {
             try {
@@ -129,6 +161,7 @@ function setupEventListeners() {
                 showNotification('Error al agregar tarea de prueba', 'error');
             }
         };
+        console.log('Event listener de botón de prueba configurado');
     }
     
     // Configurar navegación del calendario
@@ -156,80 +189,158 @@ function saveTasks() {
 function renderTasks(filteredTasks = null) {
     console.log('Renderizando tareas...');
     
-    // Verificar que el elemento exista
-    if (!tasksList) {
-        console.error('No se encontró el elemento para la lista de tareas');
+    // Intentar obtener el contenedor de tareas específico
+    const tasksContainer = document.getElementById('tasksContainer');
+    
+    // Verificar que el elemento exista (ya sea tasksList o tasksContainer)
+    if (!tasksList && !tasksContainer) {
+        console.error('No se encontró el elemento para la lista de tareas (ni tasksList ni tasksContainer)');
         return;
     }
     
     const tasksToRender = filteredTasks || tasks;
     console.log('Tareas a renderizar:', tasksToRender.length);
     
-    // Limpiar la lista de tareas
-    tasksList.innerHTML = '';
-    
-    // Mostrar mensaje si no hay tareas
-    if (!tasksToRender || tasksToRender.length === 0) {
-        console.log('No hay tareas para mostrar');
-        const emptyRow = document.createElement('tr');
-        emptyRow.innerHTML = `<td colspan="8" style="text-align: center; padding: 20px;">No hay tareas disponibles</td>`;
-        tasksList.appendChild(emptyRow);
+    // Renderizar en el contenedor de tarjetas si existe
+    if (tasksContainer) {
+        // Limpiar el contenedor
+        tasksContainer.innerHTML = '';
+        
+        // Mostrar mensaje si no hay tareas
+        if (!tasksToRender || tasksToRender.length === 0) {
+            tasksContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-clipboard-list"></i>
+                    <h3>No hay tareas disponibles</h3>
+                    <p>Agrega una nueva tarea para comenzar</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Renderizar cada tarea como tarjeta
+        tasksToRender.forEach(task => {
+            try {
+                // Crear elemento de tarjeta
+                const card = document.createElement('div');
+                card.className = `task-card priority-${(task.priority || 'media').toLowerCase()}`;
+                
+                // Crear contenido de la tarjeta
+                card.innerHTML = `
+                    <div class="task-header">
+                        <h3 class="task-title">${task.report || 'Sin título'}</h3>
+                    </div>
+                    <div class="task-meta">
+                        <span class="task-tag tag-type">
+                            <i class="fas fa-tag"></i> ${task.type || 'General'}
+                        </span>
+                        <span class="task-tag status-${(task.status || 'pendiente').toLowerCase().replace(/ /g, '-')}">
+                            <i class="fas fa-spinner"></i> ${task.status || 'Pendiente'}
+                        </span>
+                        <span class="task-tag priority-${(task.priority || 'media').toLowerCase()}">
+                            <i class="fas fa-flag"></i> ${task.priority || 'Media'}
+                        </span>
+                    </div>
+                    <p class="task-description">${task.description || 'Sin descripción'}</p>
+                    <p class="task-date">
+                        <i class="far fa-calendar-alt"></i> ${formatDate(task.date)}
+                    </p>
+                    ${task.dependency ? `<p class="task-date"><i class="fas fa-link"></i> Dependencia: ${task.dependency}</p>` : ''}
+                    <div class="task-actions">
+                        <button class="btn btn-primary btn-small edit-btn" data-id="${task.id}">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <button class="btn btn-danger btn-small delete-btn" data-id="${task.id}">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </div>
+                `;
+                
+                // Agregar la tarjeta al contenedor
+                tasksContainer.appendChild(card);
+            } catch (error) {
+                console.error('Error al renderizar tarjeta de tarea:', error, task);
+            }
+        });
+        
+        // Agregar event listeners después de renderizar
+        setTimeout(addActionButtonListeners, 0);
+        console.log('Tarjetas de tareas renderizadas correctamente');
         return;
     }
     
-    // Renderizar cada tarea
-    tasksToRender.forEach(task => {
-        try {
-            // Garantizar que los valores existan para evitar errores
-            const taskType = task.type || '';
-            const taskReport = task.report || '';
-            const taskDesc = task.description || '';
-            const taskDate = task.date || '';
-            const taskStatus = task.status || 'Pendiente';
-            const taskDependency = task.dependency || 'Ninguna';
-            const taskPriority = task.priority || 'Media';
-            const taskId = task.id || Date.now().toString();
-            
-            // Crear la fila para la tarea
-            const row = document.createElement('tr');
-            
-            // Generar el HTML de la fila
-            row.innerHTML = `
-                <td>${taskType}</td>
-                <td>${taskReport}</td>
-                <td>${taskDesc.length > 50 ? taskDesc.substring(0, 50) + '...' : taskDesc}</td>
-                <td>${formatDate(taskDate)}</td>
-                <td class="status-${taskStatus.toLowerCase().replace(/ /g, '-')}">${taskStatus}</td>
-                <td>${taskDependency}</td>
-                <td class="priority-${taskPriority.toLowerCase()}">${taskPriority}</td>
-                <td class="action-buttons">
-                    <button class="edit-btn" data-id="${taskId}"><i class="fas fa-edit"></i> Editar</button>
-                    <button class="delete-btn" data-id="${taskId}"><i class="fas fa-trash"></i> Eliminar</button>
-                </td>
-            `;
-            
-            // Agregar la fila a la tabla
-            tasksList.appendChild(row);
-        } catch (error) {
-            console.error('Error al renderizar tarea:', error, task);
+    // Si llegamos aquí, usaremos el tasksList (tabla)
+    if (tasksList) {
+        // Limpiar la lista de tareas
+        tasksList.innerHTML = '';
+        
+        // Mostrar mensaje si no hay tareas
+        if (!tasksToRender || tasksToRender.length === 0) {
+            console.log('No hay tareas para mostrar');
+            const emptyRow = document.createElement('tr');
+            emptyRow.innerHTML = `<td colspan="8" style="text-align: center; padding: 20px;">No hay tareas disponibles</td>`;
+            tasksList.appendChild(emptyRow);
+            return;
         }
-    });
-    
-    // Agregar event listeners a los botones de acción
-    addActionButtonListeners();
-    console.log('Tareas renderizadas correctamente');
+        
+        // Renderizar cada tarea
+        tasksToRender.forEach(task => {
+            try {
+                // Garantizar que los valores existan para evitar errores
+                const taskType = task.type || '';
+                const taskReport = task.report || '';
+                const taskDesc = task.description || '';
+                const taskDate = task.date || '';
+                const taskStatus = task.status || 'Pendiente';
+                const taskDependency = task.dependency || 'Ninguna';
+                const taskPriority = task.priority || 'Media';
+                const taskId = task.id || Date.now().toString();
+                
+                // Crear la fila para la tarea
+                const row = document.createElement('tr');
+                
+                // Generar el HTML de la fila
+                row.innerHTML = `
+                    <td>${taskType}</td>
+                    <td>${taskReport}</td>
+                    <td>${taskDesc.length > 50 ? taskDesc.substring(0, 50) + '...' : taskDesc}</td>
+                    <td>${formatDate(taskDate)}</td>
+                    <td class="status-${taskStatus.toLowerCase().replace(/ /g, '-')}">${taskStatus}</td>
+                    <td>${taskDependency}</td>
+                    <td class="priority-${taskPriority.toLowerCase()}">${taskPriority}</td>
+                    <td class="action-buttons">
+                        <button class="edit-btn" data-id="${taskId}"><i class="fas fa-edit"></i> Editar</button>
+                        <button class="delete-btn" data-id="${taskId}"><i class="fas fa-trash"></i> Eliminar</button>
+                    </td>
+                `;
+                
+                // Agregar la fila a la tabla
+                tasksList.appendChild(row);
+            } catch (error) {
+                console.error('Error al renderizar tarea:', error, task);
+            }
+        });
+        
+        // Agregar event listeners a los botones de acción
+        setTimeout(addActionButtonListeners, 0);
+        console.log('Tareas renderizadas correctamente en tabla');
+    }
 }
 
 // Agregar event listeners a los botones de acción
 function addActionButtonListeners() {
     try {
+        console.log('Añadiendo event listeners a los botones de acción...');
+        
         // Botones de edición
         document.querySelectorAll('.edit-btn').forEach(button => {
+            button.removeEventListener('click', handleEditClick); // Remover primero para evitar duplicados
             button.addEventListener('click', handleEditClick);
         });
         
         // Botones de eliminación
         document.querySelectorAll('.delete-btn').forEach(button => {
+            button.removeEventListener('click', handleDeleteClick); // Remover primero para evitar duplicados
             button.addEventListener('click', handleDeleteClick);
         });
         
@@ -241,7 +352,7 @@ function addActionButtonListeners() {
 
 // Manejo del envío del formulario
 function handleFormSubmit(e) {
-    e.preventDefault();
+        e.preventDefault();
     
     try {
         console.log('Procesando envío de formulario...');
@@ -309,9 +420,9 @@ function handleFormSubmit(e) {
             
             // Agregar a la lista, guardar y renderizar
             tasks.push(newTask);
-            saveTasks();
-            renderTasks();
-            updateDependencyOptions();
+        saveTasks();
+        renderTasks();
+        updateDependencyOptions();
             showNotification('Tarea agregada correctamente', 'success');
             
             // Limpiar el formulario
@@ -332,13 +443,13 @@ function handleFormSubmit(e) {
 // Manejo del click en el botón de editar
 function handleEditClick(e) {
     try {
-        const taskId = e.currentTarget.getAttribute('data-id');
+    const taskId = e.currentTarget.getAttribute('data-id');
         console.log('Editando tarea con ID:', taskId);
         
         // Buscar la tarea por ID
         const task = tasks.find(task => task.id === taskId);
-        
-        if (task) {
+    
+    if (task) {
             // Llenar el formulario con los datos de la tarea
             document.getElementById('taskType').value = task.type || '';
             document.getElementById('taskReport').value = task.report || '';
@@ -354,8 +465,8 @@ function handleEditClick(e) {
             updateBtn.style.display = 'inline-block';
             
             // Almacenar el ID de la tarea actual
-            currentTaskId = taskId;
-            
+        currentTaskId = taskId;
+        
             // Desplazarse hasta el formulario
             document.querySelector('header').scrollIntoView({ behavior: 'smooth' });
             
@@ -395,10 +506,10 @@ function handleTaskUpdate() {
         
         // Buscar y actualizar la tarea
         const taskIndex = tasks.findIndex(task => task.id === currentTaskId);
-        
-        if (taskIndex !== -1) {
-            tasks[taskIndex] = {
-                ...tasks[taskIndex],
+    
+    if (taskIndex !== -1) {
+        tasks[taskIndex] = {
+            ...tasks[taskIndex],
                 type,
                 report,
                 description,
@@ -406,19 +517,19 @@ function handleTaskUpdate() {
                 status,
                 dependency,
                 priority
-            };
-            
-            saveTasks();
-            renderTasks();
-            updateDependencyOptions();
+        };
+        
+        saveTasks();
+        renderTasks();
+        updateDependencyOptions();
             showNotification('Tarea actualizada correctamente', 'success');
             
             // Restaurar el formulario para agregar nuevas tareas
             document.getElementById('taskForm').reset();
             document.getElementById('addTask').style.display = 'inline-block';
             document.getElementById('updateTask').style.display = 'none';
-            currentTaskId = null;
-            
+        currentTaskId = null;
+        
             // Establecer la fecha actual como valor predeterminado
             document.getElementById('taskDate').valueAsDate = new Date();
         } else {
@@ -433,21 +544,21 @@ function handleTaskUpdate() {
 // Manejo del click en el botón de eliminar
 function handleDeleteClick(e) {
     try {
-        const taskId = e.currentTarget.getAttribute('data-id');
+    const taskId = e.currentTarget.getAttribute('data-id');
         console.log('Eliminando tarea con ID:', taskId);
         
         // Confirmación de eliminación
         if (confirm('¿Estás seguro que deseas eliminar esta tarea?')) {
             // Verificar si hay tareas dependientes
             const dependentTasks = tasks.filter(task => task.dependency === getTaskNameById(taskId));
-            
-            if (dependentTasks.length > 0) {
+        
+        if (dependentTasks.length > 0) {
                 const confirmDependents = confirm(`Esta tarea tiene ${dependentTasks.length} tareas dependientes. Si continúas, esas dependencias se eliminarán. ¿Deseas continuar?`);
                 
                 if (!confirmDependents) {
-                    return;
-                }
-                
+            return;
+        }
+        
                 // Eliminar dependencias
                 dependentTasks.forEach(task => {
                     task.dependency = '';
@@ -458,22 +569,22 @@ function handleDeleteClick(e) {
             tasks = tasks.filter(task => task.id !== taskId);
             
             // Guardar y renderizar
-            saveTasks();
-            renderTasks();
-            updateDependencyOptions();
-            
+        saveTasks();
+        renderTasks();
+        updateDependencyOptions();
+        
             // Si estábamos editando esta tarea, resetear el formulario
-            if (currentTaskId === taskId) {
+        if (currentTaskId === taskId) {
                 document.getElementById('taskForm').reset();
                 document.getElementById('addTask').style.display = 'inline-block';
                 document.getElementById('updateTask').style.display = 'none';
-                currentTaskId = null;
+            currentTaskId = null;
                 
                 // Establecer la fecha actual como valor predeterminado
                 document.getElementById('taskDate').valueAsDate = new Date();
-            }
-            
-            showNotification('Tarea eliminada correctamente', 'success');
+        }
+        
+        showNotification('Tarea eliminada correctamente', 'success');
         }
     } catch (error) {
         console.error('Error al eliminar tarea:', error);
@@ -549,15 +660,15 @@ function showNotification(message, type = 'info') {
             notification = document.createElement('div');
             notification.id = 'notification';
             notification.className = 'notification';
-            document.body.appendChild(notification);
+    document.body.appendChild(notification);
         }
-        
+    
         // Detener cualquier animación existente
         notification.style.animation = 'none';
-        setTimeout(() => {
+    setTimeout(() => {
             notification.style.animation = '';
-        }, 10);
-        
+    }, 10);
+    
         // Establecer tipo y mensaje
         notification.className = `notification ${type}`;
         notification.innerHTML = `
@@ -575,7 +686,7 @@ function showNotification(message, type = 'info') {
         const closeBtn = notification.querySelector('.notification-close');
         if (closeBtn) {
             closeBtn.onclick = function() {
-                notification.classList.remove('show');
+        notification.classList.remove('show');
             };
         }
         
@@ -605,132 +716,66 @@ function getNotificationIcon(type) {
     }
 }
 
-// Iniciar la aplicación cuando el DOM esté cargado
-console.log('Configurando evento DOMContentLoaded');
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM cargado completamente, iniciando aplicación...');
-    try {
-        // Inicializar la aplicación
-        initApp();
-        
-        // Mostrar mensaje de bienvenida
-        setTimeout(function() {
-            showNotification('¡Bienvenido al Gestor de Tareas! La aplicación está lista para usar.', 'info');
-        }, 1000);
-    } catch (error) {
-        console.error('Error al inicializar la aplicación:', error);
-        // Intentar recuperarse del error
-        try {
-            // Cargar tareas si existen
-            const storedTasks = Storage.load('tasks');
-            if (storedTasks) {
-                tasks = storedTasks;
-                renderTasks();
-                updateDependencyOptions();
-                showNotification('Aplicación recuperada con datos existentes', 'warning');
-            } else {
-                showNotification('Error al inicializar. No se encontraron datos guardados.', 'error');
-            }
-        } catch (recoveryError) {
-            console.error('Error en la recuperación:', recoveryError);
-            showNotification('No se pudo recuperar la aplicación. Intente recargar la página.', 'error');
-        }
-    }
-});
-
-// Método directo para agregar tarea (para pruebas desde consola)
-window.addTaskManual = function() {
-    try {
-        const taskData = {
-            id: Date.now().toString(),
-            type: 'Desarrollo',
-            report: 'Tarea de prueba',
-            description: 'Esta es una tarea de prueba',
-            date: new Date().toISOString().split('T')[0],
-            status: 'Pendiente',
-            dependency: '',
-            priority: 'Media'
-        };
-        
-        tasks.push(taskData);
-        saveTasks();
-        renderTasks();
-        updateDependencyOptions();
-        
-        // Actualizar otras vistas según la pestaña activa
-        const activeTab = document.querySelector('.tab-btn.active');
-        if (activeTab) {
-            const tabId = activeTab.getAttribute('data-tab');
-            if (tabId === 'tab-kanban') {
-                renderKanbanBoard();
-            } else if (tabId === 'tab-list') {
-                renderTasksList();
-            } else if (tabId === 'tab-calendar') {
-                renderCalendar();
-            } else if (tabId === 'tab-dashboard') {
-                renderDashboard();
-            }
-        }
-        
-        showNotification('Tarea de prueba agregada', 'success');
-        return true;
-    } catch (error) {
-        console.error('Error al agregar tarea manual:', error);
-        showNotification('Error al agregar tarea de prueba', 'error');
-        return false;
-    }
-};
-
-// Comprobar si localStorage está disponible
-try {
-    localStorage.setItem('testLocalStorage', 'test');
-    localStorage.removeItem('testLocalStorage');
-    console.log('localStorage está disponible');
-} catch (error) {
-    console.error('localStorage no está disponible:', error);
-}
-
 // Inicialización del sistema de pestañas
 function initTabSystem() {
     console.log('Inicializando sistema de pestañas...');
     
     const tabButtons = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
+    const tabPanes = document.querySelectorAll('.tab-pane');
     
-    if (!tabButtons.length || !tabContents.length) {
+    if (!tabButtons.length || !tabPanes.length) {
         console.log('No se encontraron elementos de pestañas');
         return;
     }
     
+    console.log(`Encontrados ${tabButtons.length} botones de pestaña y ${tabPanes.length} paneles`);
+    
+    // Remover listeners antiguos para evitar duplicados (importante en GitHub Pages)
+    tabButtons.forEach(button => {
+        const clonedButton = button.cloneNode(true);
+        button.parentNode.replaceChild(clonedButton, button);
+    });
+    
+    // Volver a seleccionar los botones actualizados
+    const updatedTabButtons = document.querySelectorAll('.tab-btn');
+    
     // Activar la primera pestaña por defecto
-    if (tabButtons[0] && tabContents[0]) {
-        tabButtons[0].classList.add('active');
-        tabContents[0].classList.add('active');
+    if (updatedTabButtons[0] && tabPanes[0]) {
+        updatedTabButtons[0].classList.add('active');
+        tabPanes[0].classList.add('active');
     }
     
     // Agregar event listeners a los botones de pestaña
-    tabButtons.forEach(button => {
-        button.addEventListener('click', function() {
+    updatedTabButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const tabId = this.getAttribute('data-tab');
+            console.log(`Clic en pestaña: ${tabId}`);
+            
             // Remover clase active de todos los botones y contenidos
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
+            updatedTabButtons.forEach(btn => btn.classList.remove('active'));
+            tabPanes.forEach(pane => pane.classList.remove('active'));
             
             // Agregar clase active al botón clickeado
             this.classList.add('active');
             
-            // Obtener el ID de la pestaña a mostrar
-            const tabId = this.getAttribute('data-tab');
-            document.getElementById(tabId).classList.add('active');
-            
-            // Renderizar el contenido específico de la pestaña
-            if (tabId === 'tab-kanban') {
-                renderKanbanBoard();
-            } else if (tabId === 'tab-list') {
-                renderTasksList();
-            } else if (tabId === 'tab-calendar') {
-                renderCalendar();
-            } else if (tabId === 'tab-dashboard') {
-                renderDashboard();
+            // Obtener el contenido correspondiente y activarlo
+            const targetPane = document.getElementById(tabId);
+            if (targetPane) {
+                targetPane.classList.add('active');
+                
+                // Renderizar contenido específico según la pestaña
+                if (tabId === 'tab-kanban') {
+                    renderKanbanBoard();
+                } else if (tabId === 'tab-list') {
+                    renderTasksList();
+                } else if (tabId === 'tab-calendar') {
+                    renderCalendar();
+                } else if (tabId === 'tab-dashboard') {
+                    renderDashboard();
+                }
+            } else {
+                console.error(`No se encontró el panel para la pestaña: ${tabId}`);
             }
         });
     });
@@ -740,14 +785,14 @@ function initTabSystem() {
 
 // Renderizar el tablero Kanban
 function renderKanbanBoard() {
-    console.log('Renderizando tablero Kanban...');
-    
+        console.log('Renderizando tablero Kanban...');
+        
     const kanbanContainer = document.getElementById('kanban-board');
     if (!kanbanContainer) {
         console.error('No se encontró el contenedor del tablero Kanban');
-        return;
-    }
-    
+            return;
+        }
+        
     // Crear las columnas del tablero Kanban
     kanbanContainer.innerHTML = `
         <div class="kanban-column" id="column-pendiente">
@@ -784,7 +829,7 @@ function renderKanbanBoard() {
         'completada': []
     };
     
-    tasks.forEach(task => {
+        tasks.forEach(task => {
         const status = (task.status || 'Pendiente').toLowerCase().replace(' ', '-');
         if (tasksByStatus[status]) {
             tasksByStatus[status].push(task);
@@ -810,8 +855,8 @@ function renderKanbanBoard() {
             });
         }
     }
-    
-    console.log('Tablero Kanban renderizado correctamente');
+        
+        console.log('Tablero Kanban renderizado correctamente');
 }
 
 // Crear una tarjeta para el tablero Kanban
@@ -1081,14 +1126,22 @@ function setupCalendarNavigation() {
 function renderDashboard() {
     console.log('Renderizando dashboard...');
     
-    // Actualizar KPIs
+    // Actualizar valores de KPIs
     updateKPIValues();
     
-    // Renderizar gráficos
-    renderStatusChart();
-    renderPriorityChart();
-    renderTypeChart();
-    renderTasksEvolutionChart();
+    // Renderizar gráficos si Chart.js está disponible
+    if (typeof Chart !== 'undefined') {
+        renderStatusChart();
+        renderPriorityChart();
+        renderTypeChart();
+        renderTasksEvolutionChart();
+    } else {
+        console.error('Chart.js no está disponible. No se pueden renderizar gráficos.');
+        const chartContainers = document.querySelectorAll('.chart-card');
+        chartContainers.forEach(container => {
+            container.innerHTML = '<div class="error-message"><i class="fas fa-exclamation-triangle"></i> No se pueden cargar los gráficos. Chart.js no está disponible.</div>';
+        });
+    }
     
     console.log('Dashboard renderizado correctamente');
 }
@@ -1162,23 +1215,23 @@ function renderStatusChart() {
     
     // Crear nuevo gráfico
     try {
-        window.statusChart = new Chart(canvas, {
-            type: 'doughnut',
-            data: data,
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Distribución de Tareas por Estado'
-                    }
+    window.statusChart = new Chart(canvas, {
+        type: 'doughnut',
+        data: data,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Distribución de Tareas por Estado'
                 }
             }
-        });
-        console.log('Gráfico de estado renderizado correctamente');
+        }
+    });
+    console.log('Gráfico de estado renderizado correctamente');
     } catch (error) {
         console.error('Error al renderizar gráfico de estado:', error);
         canvas.parentNode.innerHTML = '<div class="chart-error">Error al cargar el gráfico. Asegúrate de que Chart.js esté cargado correctamente.</div>';
@@ -1234,23 +1287,23 @@ function renderPriorityChart() {
     
     // Crear nuevo gráfico
     try {
-        window.priorityChart = new Chart(canvas, {
-            type: 'pie',
-            data: data,
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Distribución de Tareas por Prioridad'
-                    }
+    window.priorityChart = new Chart(canvas, {
+        type: 'pie',
+        data: data,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Distribución de Tareas por Prioridad'
                 }
             }
-        });
-        console.log('Gráfico de prioridad renderizado correctamente');
+        }
+    });
+    console.log('Gráfico de prioridad renderizado correctamente');
     } catch (error) {
         console.error('Error al renderizar gráfico de prioridad:', error);
         canvas.parentNode.innerHTML = '<div class="chart-error">Error al cargar el gráfico. Asegúrate de que Chart.js esté cargado correctamente.</div>';
@@ -1477,3 +1530,79 @@ window.renderKanbanBoard = renderKanbanBoard;
 window.renderTasksList = renderTasksList;
 window.renderCalendar = renderCalendar;
 window.renderDashboard = renderDashboard;
+
+// Sistema de inicialización segura para GitHub Pages
+// Este código asegura que la aplicación se inicialice correctamente
+// independientemente de cuándo se carguen los recursos
+
+// Inicialización cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM cargado completamente, iniciando aplicación...');
+    initializeApp();
+});
+
+// Función de inicialización segura
+function initializeApp() {
+    try {
+        console.log('Iniciando aplicación con inicialización segura...');
+        
+        // Comprobar si ya se ha iniciado para evitar doble inicialización
+        if (window.appInitialized) {
+            console.log('La aplicación ya estaba inicializada.');
+            return;
+        }
+        
+        // Marcar como inicializada
+        window.appInitialized = true;
+        
+        // Inicializar la aplicación con un pequeño retraso
+        // para asegurar que todos los recursos están cargados
+        setTimeout(function() {
+            initApp();
+            
+            // Mostrar mensaje de bienvenida
+            setTimeout(function() {
+                showNotification('¡Bienvenido al Gestor de Tareas!', 'info');
+            }, 1000);
+        }, 300);
+    } catch (error) {
+        console.error('Error al inicializar la aplicación:', error);
+        
+        // Intentar recuperarse del error
+        try {
+            // Inicializar referencias DOM
+            initDOMReferences();
+            
+            // Cargar tareas si existen
+            const storedTasks = Storage.load('tasks');
+            if (storedTasks) {
+                tasks = storedTasks;
+                renderTasks();
+                updateDependencyOptions();
+                showNotification('Aplicación recuperada con datos existentes', 'warning');
+            } else {
+                showNotification('Error al inicializar. No se encontraron datos guardados.', 'error');
+            }
+            
+            // Inicializar sistema de pestañas
+            initTabSystem();
+        } catch (recoveryError) {
+            console.error('Error en la recuperación:', recoveryError);
+            
+            // Último intento de recuperación
+            const appStatus = document.getElementById('app-status');
+            if (appStatus) {
+                appStatus.innerHTML = '<span style="color: #e74c3c; font-weight: bold;">Error de inicialización. Intenta recargar la página.</span>';
+            }
+            
+            // Mostrar notificación de error
+            alert('Hubo un problema al inicializar la aplicación. Intenta recargar la página.');
+        }
+    }
+}
+
+// Verificar si el documento ya está cargado
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    console.log('Documento ya cargado, iniciando directamente...');
+    setTimeout(initializeApp, 100);
+}

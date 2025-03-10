@@ -17,7 +17,7 @@ const Storage = {
     save: function(key, data) {
         try {
             localStorage.setItem(key, JSON.stringify(data));
-            console.log('Datos guardados correctamente:', key, data);
+            console.log('Datos guardados correctamente:', key);
             return true;
         } catch (error) {
             console.error('Error al guardar datos:', error);
@@ -35,7 +35,7 @@ const Storage = {
     }
 };
 
-// Inicialización de la aplicación
+// Inicialización de la aplicación - Versión unificada y simplificada
 function initApp() {
     console.log('Iniciando aplicación...');
     
@@ -43,7 +43,7 @@ function initApp() {
     const storedTasks = Storage.load('tasks');
     if (storedTasks) {
         tasks = storedTasks;
-        console.log('Tareas cargadas:', tasks);
+        console.log('Tareas cargadas:', tasks.length);
     } else {
         console.log('No se encontraron tareas guardadas');
         tasks = [];
@@ -53,7 +53,27 @@ function initApp() {
     renderTasks();
     updateDependencyOptions();
     
-    // Configurar los event listeners manualmente para asegurar que funcionen
+    // Configurar los event listeners
+    setupEventListeners();
+    
+    // Establecer la fecha actual como valor predeterminado
+    const dateInput = document.getElementById('taskDate');
+    if (dateInput) {
+        dateInput.valueAsDate = new Date();
+    }
+    
+    // Inicializar el sistema de pestañas
+    initTabSystem();
+    
+    // Actualizar app status
+    updateAppStatus();
+    
+    console.log('Aplicación inicializada correctamente');
+}
+
+// Configurar todos los event listeners
+function setupEventListeners() {
+    // Formulario principal
     if (taskForm) {
         taskForm.onsubmit = function(e) {
             e.preventDefault();
@@ -61,14 +81,14 @@ function initApp() {
             return false;
         };
         console.log('Event listener de formulario configurado');
-    } else {
-        console.error('No se encontró el formulario de tareas');
     }
     
+    // Botones de acciones principales
     if (updateTaskBtn) {
         updateTaskBtn.onclick = handleTaskUpdate;
     }
     
+    // Filtros
     if (filterStatus) {
         filterStatus.onchange = applyFilters;
     }
@@ -77,13 +97,52 @@ function initApp() {
         filterPriority.onchange = applyFilters;
     }
     
-    // Establecer la fecha actual como valor predeterminado
-    const dateInput = document.getElementById('taskDate');
-    if (dateInput) {
-        dateInput.valueAsDate = new Date();
+    // Botón de prueba (si existe)
+    const testConnBtn = document.getElementById('testConnection');
+    if (testConnBtn) {
+        testConnBtn.onclick = function() {
+            try {
+                // Agregar una tarea de prueba
+                const testTask = {
+                    id: 'test-' + Date.now(),
+                    type: 'Prueba',
+                    report: 'TEST-' + Math.floor(Math.random() * 1000),
+                    description: 'Tarea de prueba creada el ' + new Date().toLocaleString(),
+                    date: new Date().toISOString().split('T')[0],
+                    status: 'Pendiente',
+                    dependency: '',
+                    priority: 'Media'
+                };
+                
+                // Agregar a la lista de tareas
+                tasks.push(testTask);
+                
+                // Guardar y renderizar
+                saveTasks();
+                renderTasks();
+                updateDependencyOptions();
+                
+                // Mostrar notificación
+                showNotification('Tarea de prueba agregada correctamente', 'success');
+            } catch (error) {
+                console.error('Error al agregar tarea de prueba:', error);
+                showNotification('Error al agregar tarea de prueba', 'error');
+            }
+        };
     }
     
-    console.log('Aplicación inicializada correctamente');
+    // Configurar navegación del calendario
+    setupCalendarNavigation();
+    
+    console.log('Event listeners configurados correctamente');
+}
+
+// Actualizar el estado de la aplicación en la UI
+function updateAppStatus() {
+    const appStatus = document.getElementById('app-status');
+    if (appStatus) {
+        appStatus.innerHTML = '<span style="color: #4CAF50; font-weight: bold;">Funcionando correctamente</span>';
+    }
 }
 
 // Guardar tareas en almacenamiento
@@ -104,7 +163,7 @@ function renderTasks(filteredTasks = null) {
     }
     
     const tasksToRender = filteredTasks || tasks;
-    console.log('Tareas a renderizar:', tasksToRender);
+    console.log('Tareas a renderizar:', tasksToRender.length);
     
     // Limpiar la lista de tareas
     tasksList.innerHTML = '';
@@ -121,21 +180,35 @@ function renderTasks(filteredTasks = null) {
     // Renderizar cada tarea
     tasksToRender.forEach(task => {
         try {
+            // Garantizar que los valores existan para evitar errores
+            const taskType = task.type || '';
+            const taskReport = task.report || '';
+            const taskDesc = task.description || '';
+            const taskDate = task.date || '';
+            const taskStatus = task.status || 'Pendiente';
+            const taskDependency = task.dependency || 'Ninguna';
+            const taskPriority = task.priority || 'Media';
+            const taskId = task.id || Date.now().toString();
+            
+            // Crear la fila para la tarea
             const row = document.createElement('tr');
+            
+            // Generar el HTML de la fila
             row.innerHTML = `
-                <td>${task.type || ''}</td>
-                <td>${task.report || ''}</td>
-                <td>${task.description ? (task.description.length > 50 ? task.description.substring(0, 50) + '...' : task.description) : ''}</td>
-                <td>${formatDate(task.date)}</td>
-                <td class="status-${(task.status || '').toLowerCase().replace(' ', '-')}">${task.status || ''}</td>
-                <td>${task.dependency || 'Ninguna'}</td>
-                <td class="priority-${(task.priority || '').toLowerCase()}">${task.priority || ''}</td>
+                <td>${taskType}</td>
+                <td>${taskReport}</td>
+                <td>${taskDesc.length > 50 ? taskDesc.substring(0, 50) + '...' : taskDesc}</td>
+                <td>${formatDate(taskDate)}</td>
+                <td class="status-${taskStatus.toLowerCase().replace(/ /g, '-')}">${taskStatus}</td>
+                <td>${taskDependency}</td>
+                <td class="priority-${taskPriority.toLowerCase()}">${taskPriority}</td>
                 <td class="action-buttons">
-                    <button class="edit-btn" data-id="${task.id}"><i class="fas fa-edit"></i> Editar</button>
-                    <button class="delete-btn" data-id="${task.id}"><i class="fas fa-trash"></i> Eliminar</button>
+                    <button class="edit-btn" data-id="${taskId}"><i class="fas fa-edit"></i> Editar</button>
+                    <button class="delete-btn" data-id="${taskId}"><i class="fas fa-trash"></i> Eliminar</button>
                 </td>
             `;
             
+            // Agregar la fila a la tabla
             tasksList.appendChild(row);
         } catch (error) {
             console.error('Error al renderizar tarea:', error, task);
@@ -149,179 +222,262 @@ function renderTasks(filteredTasks = null) {
 
 // Agregar event listeners a los botones de acción
 function addActionButtonListeners() {
-    document.querySelectorAll('.edit-btn').forEach(button => {
-        button.onclick = handleEditClick;
-    });
-    
-    document.querySelectorAll('.delete-btn').forEach(button => {
-        button.onclick = handleDeleteClick;
-    });
-    
-    console.log('Event listeners de botones de acción configurados');
+    try {
+        // Botones de edición
+        document.querySelectorAll('.edit-btn').forEach(button => {
+            button.addEventListener('click', handleEditClick);
+        });
+        
+        // Botones de eliminación
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', handleDeleteClick);
+        });
+        
+        console.log('Event listeners añadidos a los botones de acción');
+    } catch (error) {
+        console.error('Error al añadir event listeners a los botones:', error);
+    }
 }
 
-// Manejar el envío del formulario
+// Manejo del envío del formulario
 function handleFormSubmit(e) {
-    console.log('Enviando formulario...');
-    
-    // Prevenir el comportamiento predeterminado
-    if (e) {
-        e.preventDefault();
-    }
+    e.preventDefault();
     
     try {
+        console.log('Procesando envío de formulario...');
+        
         // Obtener los valores del formulario
-        const typeInput = document.getElementById('taskType');
-        const reportInput = document.getElementById('taskReport');
-        const descriptionInput = document.getElementById('taskDescription');
-        const dateInput = document.getElementById('taskDate');
-        const statusInput = document.getElementById('taskStatus');
-        const dependencyInput = document.getElementById('taskDependency');
-        const priorityInput = document.getElementById('taskPriority');
+        const type = document.getElementById('taskType').value.trim();
+        const report = document.getElementById('taskReport').value.trim();
+        const description = document.getElementById('taskDescription').value.trim();
+        const date = document.getElementById('taskDate').value;
+        const status = document.getElementById('taskStatus').value;
+        const dependency = document.getElementById('taskDependency').value;
+        const priority = document.getElementById('taskPriority').value;
         
-        if (!typeInput || !reportInput || !descriptionInput || !dateInput || !statusInput || !priorityInput) {
-            console.error('Faltan elementos del formulario');
-            return;
+        // Validar campos requeridos
+        if (!type || !report || !description || !date || !status || !priority) {
+            showNotification('Por favor, completa todos los campos requeridos', 'error');
+            return false;
         }
         
-        // Crear objeto de tarea
-        const taskData = {
-            id: Date.now().toString(),
-            type: typeInput.value,
-            report: reportInput.value,
-            description: descriptionInput.value,
-            date: dateInput.value,
-            status: statusInput.value,
-            dependency: dependencyInput ? dependencyInput.value : '',
-            priority: priorityInput.value
-        };
-        
-        console.log('Datos de la nueva tarea:', taskData);
-        
-        // Validar que los campos requeridos tengan valor
-        if (!taskData.type || !taskData.report || !taskData.description || !taskData.date || !taskData.status || !taskData.priority) {
-            console.error('Faltan campos requeridos');
-            alert('Por favor, completa todos los campos requeridos');
-            return;
-        }
-        
-        // Agregar la tarea al array
-        tasks.push(taskData);
-        console.log('Tarea agregada al array, nuevo total:', tasks.length);
-        
-        // Guardar, renderizar y actualizar
-        saveTasks();
-        renderTasks();
-        updateDependencyOptions();
-        
-        // Resetear el formulario
-        if (taskForm) {
-            taskForm.reset();
-        }
-        
-        // Establecer la fecha actual
-        if (dateInput) {
-            dateInput.valueAsDate = new Date();
-        }
-        
-        // Mostrar mensaje de éxito
-        showNotification('Tarea agregada correctamente', 'success');
-        console.log('Tarea agregada y formulario reseteado');
-    } catch (error) {
-        console.error('Error al agregar tarea:', error);
-        showNotification('Error al agregar tarea: ' + error.message, 'error');
-    }
-}
-
-// Manejar el clic en el botón de editar
-function handleEditClick(e) {
-    const taskId = e.currentTarget.getAttribute('data-id');
-    const task = tasks.find(t => t.id === taskId);
-    
-    if (task) {
-        document.getElementById('taskType').value = task.type;
-        document.getElementById('taskReport').value = task.report;
-        document.getElementById('taskDescription').value = task.description;
-        document.getElementById('taskDate').value = task.date;
-        document.getElementById('taskStatus').value = task.status;
-        document.getElementById('taskDependency').value = task.dependency;
-        document.getElementById('taskPriority').value = task.priority;
-        
-        // Habilitar el botón de actualización y deshabilitar el de agregar
-        updateTaskBtn.disabled = false;
-        addTaskBtn.disabled = true;
-        
-        // Guardar el ID de la tarea actual
-        currentTaskId = taskId;
-        
-        // Desplazarse al formulario
-        document.querySelector('.add-task-section').scrollIntoView({ behavior: 'smooth' });
-    }
-}
-
-// Manejar la actualización de tarea
-function handleTaskUpdate() {
-    if (!currentTaskId) return;
-    
-    const taskIndex = tasks.findIndex(t => t.id === currentTaskId);
-    
-    if (taskIndex !== -1) {
-        tasks[taskIndex] = {
-            ...tasks[taskIndex],
-            type: document.getElementById('taskType').value,
-            report: document.getElementById('taskReport').value,
-            description: document.getElementById('taskDescription').value,
-            date: document.getElementById('taskDate').value,
-            status: document.getElementById('taskStatus').value,
-            dependency: document.getElementById('taskDependency').value,
-            priority: document.getElementById('taskPriority').value
-        };
-        
-        saveTasks();
-        renderTasks();
-        updateDependencyOptions();
-        taskForm.reset();
-        document.getElementById('taskDate').valueAsDate = new Date();
-        
-        // Restablecer los botones
-        updateTaskBtn.disabled = true;
-        addTaskBtn.disabled = false;
-        currentTaskId = null;
-        
-        // Mostrar mensaje de éxito
-        showNotification('Tarea actualizada correctamente', 'success');
-    }
-}
-
-// Manejar el clic en el botón de eliminar
-function handleDeleteClick(e) {
-    const taskId = e.currentTarget.getAttribute('data-id');
-    
-    if (confirm('¿Estás seguro de que deseas eliminar esta tarea?')) {
-        // Verificar si hay tareas que dependen de esta
-        const dependentTasks = tasks.filter(t => t.dependency === getTaskNameById(taskId));
-        
-        if (dependentTasks.length > 0) {
-            alert('No se puede eliminar esta tarea porque hay otras tareas que dependen de ella.');
-            return;
-        }
-        
-        tasks = tasks.filter(t => t.id !== taskId);
-        saveTasks();
-        renderTasks();
-        updateDependencyOptions();
-        
-        // Si la tarea que se está editando es la que se eliminó, resetear el formulario
-        if (currentTaskId === taskId) {
-            taskForm.reset();
+        // Comprobar si estamos actualizando una tarea existente
+        if (currentTaskId) {
+            // Buscar y actualizar la tarea
+            const taskIndex = tasks.findIndex(task => task.id === currentTaskId);
+            
+            if (taskIndex !== -1) {
+                tasks[taskIndex] = {
+                    ...tasks[taskIndex],
+                    type,
+                    report,
+                    description,
+                    date,
+                    status,
+                    dependency,
+                    priority
+                };
+                
+                saveTasks();
+                renderTasks();
+                updateDependencyOptions();
+                showNotification('Tarea actualizada correctamente', 'success');
+                
+                // Restaurar el formulario para agregar nuevas tareas
+                document.getElementById('taskForm').reset();
+                document.getElementById('addTask').style.display = 'inline-block';
+                document.getElementById('updateTask').style.display = 'none';
+                currentTaskId = null;
+                
+                // Establecer la fecha actual como valor predeterminado
+                document.getElementById('taskDate').valueAsDate = new Date();
+            } else {
+                showNotification('Error: No se encontró la tarea para actualizar', 'error');
+            }
+        } else {
+            // Crear una nueva tarea
+            const newTask = {
+                id: Date.now().toString(), // Usar timestamp como ID único
+                type,
+                report,
+                description,
+                date,
+                status,
+                dependency,
+                priority
+            };
+            
+            // Agregar a la lista, guardar y renderizar
+            tasks.push(newTask);
+            saveTasks();
+            renderTasks();
+            updateDependencyOptions();
+            showNotification('Tarea agregada correctamente', 'success');
+            
+            // Limpiar el formulario
+            document.getElementById('taskForm').reset();
+            
+            // Establecer la fecha actual como valor predeterminado
             document.getElementById('taskDate').valueAsDate = new Date();
-            updateTaskBtn.disabled = true;
-            addTaskBtn.disabled = false;
-            currentTaskId = null;
         }
         
-        // Mostrar mensaje de éxito
-        showNotification('Tarea eliminada correctamente', 'success');
+        return false;
+    } catch (error) {
+        console.error('Error al procesar el formulario:', error);
+        showNotification('Error al procesar el formulario', 'error');
+        return false;
+    }
+}
+
+// Manejo del click en el botón de editar
+function handleEditClick(e) {
+    try {
+        const taskId = e.currentTarget.getAttribute('data-id');
+        console.log('Editando tarea con ID:', taskId);
+        
+        // Buscar la tarea por ID
+        const task = tasks.find(task => task.id === taskId);
+        
+        if (task) {
+            // Llenar el formulario con los datos de la tarea
+            document.getElementById('taskType').value = task.type || '';
+            document.getElementById('taskReport').value = task.report || '';
+            document.getElementById('taskDescription').value = task.description || '';
+            document.getElementById('taskDate').value = task.date || '';
+            document.getElementById('taskStatus').value = task.status || '';
+            document.getElementById('taskDependency').value = task.dependency || '';
+            document.getElementById('taskPriority').value = task.priority || '';
+            
+            // Cambiar el estado de los botones
+            document.getElementById('addTask').style.display = 'none';
+            const updateBtn = document.getElementById('updateTask');
+            updateBtn.style.display = 'inline-block';
+            
+            // Almacenar el ID de la tarea actual
+            currentTaskId = taskId;
+            
+            // Desplazarse hasta el formulario
+            document.querySelector('header').scrollIntoView({ behavior: 'smooth' });
+            
+            showNotification('Tarea cargada para edición', 'info');
+        } else {
+            console.error('No se encontró la tarea con ID:', taskId);
+            showNotification('Error: No se pudo cargar la tarea', 'error');
+        }
+    } catch (error) {
+        console.error('Error al editar tarea:', error);
+        showNotification('Error al editar tarea', 'error');
+    }
+}
+
+// Manejo de la actualización de una tarea
+function handleTaskUpdate() {
+    try {
+        if (!currentTaskId) {
+            showNotification('Error: No hay tarea seleccionada para actualizar', 'error');
+            return;
+        }
+        
+        // Obtener los valores del formulario
+        const type = document.getElementById('taskType').value.trim();
+        const report = document.getElementById('taskReport').value.trim();
+        const description = document.getElementById('taskDescription').value.trim();
+        const date = document.getElementById('taskDate').value;
+        const status = document.getElementById('taskStatus').value;
+        const dependency = document.getElementById('taskDependency').value;
+        const priority = document.getElementById('taskPriority').value;
+        
+        // Validar campos requeridos
+        if (!type || !report || !description || !date || !status || !priority) {
+            showNotification('Por favor, completa todos los campos requeridos', 'error');
+            return;
+        }
+        
+        // Buscar y actualizar la tarea
+        const taskIndex = tasks.findIndex(task => task.id === currentTaskId);
+        
+        if (taskIndex !== -1) {
+            tasks[taskIndex] = {
+                ...tasks[taskIndex],
+                type,
+                report,
+                description,
+                date,
+                status,
+                dependency,
+                priority
+            };
+            
+            saveTasks();
+            renderTasks();
+            updateDependencyOptions();
+            showNotification('Tarea actualizada correctamente', 'success');
+            
+            // Restaurar el formulario para agregar nuevas tareas
+            document.getElementById('taskForm').reset();
+            document.getElementById('addTask').style.display = 'inline-block';
+            document.getElementById('updateTask').style.display = 'none';
+            currentTaskId = null;
+            
+            // Establecer la fecha actual como valor predeterminado
+            document.getElementById('taskDate').valueAsDate = new Date();
+        } else {
+            showNotification('Error: No se encontró la tarea para actualizar', 'error');
+        }
+    } catch (error) {
+        console.error('Error al actualizar tarea:', error);
+        showNotification('Error al actualizar tarea', 'error');
+    }
+}
+
+// Manejo del click en el botón de eliminar
+function handleDeleteClick(e) {
+    try {
+        const taskId = e.currentTarget.getAttribute('data-id');
+        console.log('Eliminando tarea con ID:', taskId);
+        
+        // Confirmación de eliminación
+        if (confirm('¿Estás seguro que deseas eliminar esta tarea?')) {
+            // Verificar si hay tareas dependientes
+            const dependentTasks = tasks.filter(task => task.dependency === getTaskNameById(taskId));
+            
+            if (dependentTasks.length > 0) {
+                const confirmDependents = confirm(`Esta tarea tiene ${dependentTasks.length} tareas dependientes. Si continúas, esas dependencias se eliminarán. ¿Deseas continuar?`);
+                
+                if (!confirmDependents) {
+                    return;
+                }
+                
+                // Eliminar dependencias
+                dependentTasks.forEach(task => {
+                    task.dependency = '';
+                });
+            }
+            
+            // Eliminar la tarea
+            tasks = tasks.filter(task => task.id !== taskId);
+            
+            // Guardar y renderizar
+            saveTasks();
+            renderTasks();
+            updateDependencyOptions();
+            
+            // Si estábamos editando esta tarea, resetear el formulario
+            if (currentTaskId === taskId) {
+                document.getElementById('taskForm').reset();
+                document.getElementById('addTask').style.display = 'inline-block';
+                document.getElementById('updateTask').style.display = 'none';
+                currentTaskId = null;
+                
+                // Establecer la fecha actual como valor predeterminado
+                document.getElementById('taskDate').valueAsDate = new Date();
+            }
+            
+            showNotification('Tarea eliminada correctamente', 'success');
+        }
+    } catch (error) {
+        console.error('Error al eliminar tarea:', error);
+        showNotification('Error al eliminar tarea', 'error');
     }
 }
 
@@ -381,38 +537,104 @@ function formatDate(dateString) {
     return date.toLocaleDateString('es-ES', options);
 }
 
-// Mostrar notificación
+// Mostrar notificación al usuario
 function showNotification(message, type = 'info') {
-    // Crear elemento de notificación
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-    
-    // Agregar al DOM
-    document.body.appendChild(notification);
-    
-    // Mostrar con animación
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 10);
-    
-    // Eliminar después de 3 segundos
-    setTimeout(() => {
-        notification.classList.remove('show');
+    try {
+        console.log(`Notificación (${type}): ${message}`);
+        
+        // Obtener o crear el elemento de notificación
+        let notification = document.getElementById('notification');
+        
+        if (!notification) {
+            notification = document.createElement('div');
+            notification.id = 'notification';
+            notification.className = 'notification';
+            document.body.appendChild(notification);
+        }
+        
+        // Detener cualquier animación existente
+        notification.style.animation = 'none';
         setTimeout(() => {
-            document.body.removeChild(notification);
-        }, 300);
-    }, 3000);
+            notification.style.animation = '';
+        }, 10);
+        
+        // Establecer tipo y mensaje
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <div class="notification-icon">
+                <i class="fas ${getNotificationIcon(type)}"></i>
+            </div>
+            <div class="notification-message">${message}</div>
+            <button class="notification-close">×</button>
+        `;
+        
+        // Mostrar la notificación
+        notification.classList.add('show');
+        
+        // Agregar evento para cerrar la notificación
+        const closeBtn = notification.querySelector('.notification-close');
+        if (closeBtn) {
+            closeBtn.onclick = function() {
+                notification.classList.remove('show');
+            };
+        }
+        
+        // Ocultar automáticamente después de 5 segundos
+        setTimeout(() => {
+            if (notification) {
+                notification.classList.remove('show');
+            }
+        }, 5000);
+    } catch (error) {
+        console.error('Error al mostrar notificación:', error);
+    }
+}
+
+// Obtener el icono adecuado según el tipo de notificación
+function getNotificationIcon(type) {
+    switch (type) {
+        case 'success':
+            return 'fa-check-circle';
+        case 'error':
+            return 'fa-exclamation-circle';
+        case 'warning':
+            return 'fa-exclamation-triangle';
+        case 'info':
+        default:
+            return 'fa-info-circle';
+    }
 }
 
 // Iniciar la aplicación cuando el DOM esté cargado
 console.log('Configurando evento DOMContentLoaded');
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM cargado completamente');
+    console.log('DOM cargado completamente, iniciando aplicación...');
     try {
+        // Inicializar la aplicación
         initApp();
+        
+        // Mostrar mensaje de bienvenida
+        setTimeout(function() {
+            showNotification('¡Bienvenido al Gestor de Tareas! La aplicación está lista para usar.', 'info');
+        }, 1000);
     } catch (error) {
         console.error('Error al inicializar la aplicación:', error);
+        // Intentar recuperarse del error
+        try {
+            // Cargar tareas si existen
+            const storedTasks = Storage.load('tasks');
+            if (storedTasks) {
+                tasks = storedTasks;
+                renderTasks();
+                updateDependencyOptions();
+                showNotification('Aplicación recuperada con datos existentes', 'warning');
+            } else {
+                showNotification('Error al inicializar. No se encontraron datos guardados.', 'error');
+            }
+        } catch (recoveryError) {
+            console.error('Error en la recuperación:', recoveryError);
+            showNotification('No se pudo recuperar la aplicación. Intente recargar la página.', 'error');
+        }
     }
 });
 
@@ -470,139 +692,175 @@ try {
 
 // Inicialización del sistema de pestañas
 function initTabSystem() {
-    console.log('Inicialización de pestañas desde app.js - ahora esta función está desactivada para evitar conflictos');
-    // La inicialización de pestañas ahora se maneja mediante un script independiente
-    return; // Salir sin hacer nada para evitar conflictos
-}
-
-// Funciones para Vista Kanban
-function renderKanbanBoard() {
-    try {
-        console.log('Renderizando tablero Kanban...');
-        
-        // Obtener las columnas del tablero
-        const columns = document.querySelectorAll('.kanban-column-body');
-        
-        if (columns.length === 0) {
-            console.error('No se encontraron columnas para el tablero Kanban');
-            return;
-        }
-        
-        // Limpiar las columnas
-        columns.forEach(column => {
-            column.innerHTML = '';
-        });
-        
-        // Contador de tareas por columna
-        const taskCounters = {
-            'Pendiente': 0,
-            'En progreso': 0,
-            'En revisión': 0,
-            'Completada': 0
-        };
-        
-        // Distribuir las tareas en las columnas según su estado
-        tasks.forEach(task => {
-            try {
-                // Incrementar el contador
-                if (taskCounters.hasOwnProperty(task.status)) {
-                    taskCounters[task.status]++;
-                }
-                
-                // Crear tarjeta para el tablero Kanban
-                const card = createKanbanCard(task);
-                
-                // Buscar la columna correspondiente
-                const column = document.querySelector(`.kanban-column-body[data-status="${task.status}"]`);
-                if (column) {
-                    column.appendChild(card);
-                }
-            } catch (error) {
-                console.error('Error al renderizar tarea en Kanban:', error, task);
-            }
-        });
-        
-        // Actualizar los contadores de tareas en cada columna
-        for (const status in taskCounters) {
-            try {
-                const counter = document.querySelector(`.kanban-column-${status.replace(' ', '-')} .kanban-column-count`);
-                if (counter) {
-                    counter.textContent = taskCounters[status];
-                }
-            } catch (error) {
-                console.error('Error al actualizar contador de columna:', error, status);
-            }
-        }
-        
-        // Asegurarse de que los botones de acción funcionen
-        document.querySelectorAll('.kanban-column-body .edit-btn').forEach(button => {
-            button.onclick = handleEditClick;
-        });
-        
-        document.querySelectorAll('.kanban-column-body .delete-btn').forEach(button => {
-            button.onclick = handleDeleteClick;
-        });
-        
-        console.log('Tablero Kanban renderizado correctamente');
-    } catch (error) {
-        console.error('Error al renderizar tablero Kanban:', error);
-        showNotification('Error al cargar vista Kanban', 'error');
-    }
-}
-
-function createKanbanCard(task) {
-    // Crear elemento de tarjeta
-    const card = document.createElement('div');
-    card.className = `kanban-card priority-${task.priority.toLowerCase()}`;
-    card.style.borderLeftColor = getPriorityColor(task.priority);
+    console.log('Inicializando sistema de pestañas...');
     
-    // Crear contenido de la tarjeta
-    card.innerHTML = `
-        <div class="task-header">
-            <h3 class="task-title">${task.report || 'Sin título'}</h3>
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    if (!tabButtons.length || !tabContents.length) {
+        console.log('No se encontraron elementos de pestañas');
+        return;
+    }
+    
+    // Activar la primera pestaña por defecto
+    if (tabButtons[0] && tabContents[0]) {
+        tabButtons[0].classList.add('active');
+        tabContents[0].classList.add('active');
+    }
+    
+    // Agregar event listeners a los botones de pestaña
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Remover clase active de todos los botones y contenidos
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            // Agregar clase active al botón clickeado
+            this.classList.add('active');
+            
+            // Obtener el ID de la pestaña a mostrar
+            const tabId = this.getAttribute('data-tab');
+            document.getElementById(tabId).classList.add('active');
+            
+            // Renderizar el contenido específico de la pestaña
+            if (tabId === 'tab-kanban') {
+                renderKanbanBoard();
+            } else if (tabId === 'tab-list') {
+                renderTasksList();
+            } else if (tabId === 'tab-calendar') {
+                renderCalendar();
+            } else if (tabId === 'tab-dashboard') {
+                renderDashboard();
+            }
+        });
+    });
+    
+    console.log('Sistema de pestañas inicializado correctamente');
+}
+
+// Renderizar el tablero Kanban
+function renderKanbanBoard() {
+    console.log('Renderizando tablero Kanban...');
+    
+    const kanbanContainer = document.getElementById('kanban-board');
+    if (!kanbanContainer) {
+        console.error('No se encontró el contenedor del tablero Kanban');
+        return;
+    }
+    
+    // Crear las columnas del tablero Kanban
+    kanbanContainer.innerHTML = `
+        <div class="kanban-column" id="column-pendiente">
+            <div class="column-header" style="background-color: #3498db;">
+                <h3>Pendiente</h3>
+            </div>
+            <div class="column-body" id="tasks-pendiente"></div>
         </div>
-        <div class="task-meta">
-            <span class="task-tag tag-type">
-                <i class="fas fa-tag"></i> ${task.type || ''}
-            </span>
-            <span class="task-tag priority-${task.priority.toLowerCase()}">
-                <i class="fas fa-flag"></i> ${task.priority || ''}
-            </span>
+        <div class="kanban-column" id="column-en-progreso">
+            <div class="column-header" style="background-color: #f39c12;">
+                <h3>En Progreso</h3>
+            </div>
+            <div class="column-body" id="tasks-en-progreso"></div>
         </div>
-        <p class="task-description">${task.description ? (task.description.length > 80 ? task.description.substring(0, 80) + '...' : task.description) : ''}</p>
-        <p class="task-date">
-            <i class="far fa-calendar-alt"></i> ${formatDate(task.date)}
-        </p>
-        <div class="task-actions">
-            <button class="btn btn-primary btn-small edit-btn" data-id="${task.id}">
-                <i class="fas fa-edit"></i> Editar
-            </button>
-            <button class="btn btn-danger btn-small delete-btn" data-id="${task.id}">
-                <i class="fas fa-trash"></i> Eliminar
-            </button>
+        <div class="kanban-column" id="column-en-revision">
+            <div class="column-header" style="background-color: #9b59b6;">
+                <h3>En Revisión</h3>
+            </div>
+            <div class="column-body" id="tasks-en-revision"></div>
+        </div>
+        <div class="kanban-column" id="column-completada">
+            <div class="column-header" style="background-color: #2ecc71;">
+                <h3>Completada</h3>
+            </div>
+            <div class="column-body" id="tasks-completada"></div>
         </div>
     `;
     
-    // Añadir event listeners a los botones
-    card.querySelector('.edit-btn').onclick = handleEditClick;
-    card.querySelector('.delete-btn').onclick = handleDeleteClick;
+    // Agrupar tareas por estado
+    const tasksByStatus = {
+        'pendiente': [],
+        'en-progreso': [],
+        'en-revision': [],
+        'completada': []
+    };
+    
+    tasks.forEach(task => {
+        const status = (task.status || 'Pendiente').toLowerCase().replace(' ', '-');
+        if (tasksByStatus[status]) {
+            tasksByStatus[status].push(task);
+        } else {
+            // Si el estado no existe en las columnas predefinidas, agregarlo a pendiente
+            tasksByStatus['pendiente'].push(task);
+        }
+    });
+    
+    // Renderizar tareas en cada columna
+    for (const status in tasksByStatus) {
+        const columnBody = document.getElementById(`tasks-${status}`);
+        if (columnBody) {
+            if (tasksByStatus[status].length === 0) {
+                columnBody.innerHTML = '<div class="empty-column">No hay tareas</div>';
+                continue;
+            }
+            
+            columnBody.innerHTML = '';
+            tasksByStatus[status].forEach(task => {
+                const card = createKanbanCard(task);
+                columnBody.appendChild(card);
+            });
+        }
+    }
+    
+    console.log('Tablero Kanban renderizado correctamente');
+}
+
+// Crear una tarjeta para el tablero Kanban
+function createKanbanCard(task) {
+    const card = document.createElement('div');
+    card.className = 'kanban-card';
+    card.style.borderLeft = `4px solid ${getPriorityColor(task.priority)}`;
+    
+    card.innerHTML = `
+        <div class="card-header">
+            <h4 class="card-title">${task.report || 'Sin título'}</h4>
+            <span class="card-priority" style="color: ${getPriorityColor(task.priority)}">${task.priority || 'Normal'}</span>
+        </div>
+        <div class="card-body">
+            <p>${task.description ? (task.description.length > 50 ? task.description.substring(0, 50) + '...' : task.description) : 'Sin descripción'}</p>
+        </div>
+        <div class="card-footer">
+            <span class="card-type">${task.type || 'General'}</span>
+            <span class="card-date">${formatDate(task.date)}</span>
+        </div>
+        <div class="card-actions">
+            <button class="edit-btn-sm" data-id="${task.id}"><i class="fas fa-edit"></i></button>
+            <button class="delete-btn-sm" data-id="${task.id}"><i class="fas fa-trash"></i></button>
+        </div>
+    `;
+    
+    // Agregar event listeners a los botones
+    setTimeout(() => {
+        const editBtn = card.querySelector('.edit-btn-sm');
+        const deleteBtn = card.querySelector('.delete-btn-sm');
+        
+        if (editBtn) editBtn.addEventListener('click', handleEditClick);
+        if (deleteBtn) deleteBtn.addEventListener('click', handleDeleteClick);
+    }, 0);
     
     return card;
 }
 
+// Obtener color según la prioridad
 function getPriorityColor(priority) {
-    switch (priority.toLowerCase()) {
-        case 'baja':
-            return '#4CAF50'; // Verde
-        case 'media':
-            return '#2196F3'; // Azul
-        case 'alta':
-            return '#ff9914'; // Naranja
-        case 'urgente':
-            return '#f44336'; // Rojo
-        default:
-            return '#757575'; // Gris
-    }
+    if (!priority) return '#3498db';
+    
+    const lowerPriority = priority.toLowerCase();
+    if (lowerPriority === 'baja') return '#3498db';
+    if (lowerPriority === 'media') return '#f39c12';
+    if (lowerPriority === 'alta') return '#e67e22';
+    if (lowerPriority === 'urgente') return '#e74c3c';
+    
+    return '#3498db';
 }
 
 // Funciones para Vista Lista
@@ -855,25 +1113,30 @@ function updateKPIValues() {
     document.getElementById('kpi-pending-trend').textContent = '7%';
 }
 
-// Función para crear gráficos (aquí usarías Chart.js en una aplicación real)
+// Función para renderizar los gráficos del dashboard
 function renderStatusChart() {
     console.log('Renderizando gráfico de estado de tareas...');
     
-    const canvas = document.getElementById('chart-status-distribution');
-    if (!canvas) return;
+    const canvas = document.getElementById('status-chart');
+    if (!canvas) {
+        console.error('No se encontró el canvas para el gráfico de estado');
+        return;
+    }
     
-    // Conteo de tareas por estado
+    // Contar tareas por estado
     const statusCounts = {
         'Pendiente': 0,
-        'En progreso': 0,
-        'En revisión': 0,
+        'En Progreso': 0,
+        'En Revisión': 0,
         'Completada': 0
     };
     
-    // Contar tareas por estado
     tasks.forEach(task => {
-        if (statusCounts.hasOwnProperty(task.status)) {
-            statusCounts[task.status]++;
+        const status = task.status || 'Pendiente';
+        if (statusCounts[status] !== undefined) {
+            statusCounts[status]++;
+        } else {
+            statusCounts[status] = 1;
         }
     });
     
@@ -881,19 +1144,12 @@ function renderStatusChart() {
     const data = {
         labels: Object.keys(statusCounts),
         datasets: [{
-            label: 'Tareas por Estado',
             data: Object.values(statusCounts),
             backgroundColor: [
-                'rgba(33, 150, 243, 0.7)', // Azul para Pendiente
-                'rgba(255, 153, 20, 0.7)', // Naranja para En progreso
-                'rgba(156, 39, 176, 0.7)', // Púrpura para En revisión
-                'rgba(76, 175, 80, 0.7)'   // Verde para Completada
-            ],
-            borderColor: [
-                'rgba(33, 150, 243, 1)',
-                'rgba(255, 153, 20, 1)',
-                'rgba(156, 39, 176, 1)',
-                'rgba(76, 175, 80, 1)'
+                '#3498db',  // Pendiente - Azul
+                '#f39c12',  // En Progreso - Naranja
+                '#9b59b6',  // En Revisión - Morado
+                '#2ecc71'   // Completada - Verde
             ],
             borderWidth: 1
         }]
@@ -905,33 +1161,41 @@ function renderStatusChart() {
     }
     
     // Crear nuevo gráfico
-    window.statusChart = new Chart(canvas, {
-        type: 'doughnut',
-        data: data,
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'top',
-                },
-                title: {
-                    display: true,
-                    text: 'Distribución de Tareas por Estado'
+    try {
+        window.statusChart = new Chart(canvas, {
+            type: 'doughnut',
+            data: data,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Distribución de Tareas por Estado'
+                    }
                 }
             }
-        }
-    });
-    
-    console.log('Gráfico de estado renderizado correctamente');
+        });
+        console.log('Gráfico de estado renderizado correctamente');
+    } catch (error) {
+        console.error('Error al renderizar gráfico de estado:', error);
+        canvas.parentNode.innerHTML = '<div class="chart-error">Error al cargar el gráfico. Asegúrate de que Chart.js esté cargado correctamente.</div>';
+    }
 }
 
+// Función para renderizar el gráfico de prioridades
 function renderPriorityChart() {
     console.log('Renderizando gráfico de prioridad de tareas...');
     
-    const canvas = document.getElementById('chart-priority-distribution');
-    if (!canvas) return;
+    const canvas = document.getElementById('priority-chart');
+    if (!canvas) {
+        console.error('No se encontró el canvas para el gráfico de prioridad');
+        return;
+    }
     
-    // Conteo de tareas por prioridad
+    // Contar tareas por prioridad
     const priorityCounts = {
         'Baja': 0,
         'Media': 0,
@@ -939,10 +1203,12 @@ function renderPriorityChart() {
         'Urgente': 0
     };
     
-    // Contar tareas por prioridad
     tasks.forEach(task => {
-        if (priorityCounts.hasOwnProperty(task.priority)) {
-            priorityCounts[task.priority]++;
+        const priority = task.priority || 'Media';
+        if (priorityCounts[priority] !== undefined) {
+            priorityCounts[priority]++;
+        } else {
+            priorityCounts[priority] = 1;
         }
     });
     
@@ -950,19 +1216,12 @@ function renderPriorityChart() {
     const data = {
         labels: Object.keys(priorityCounts),
         datasets: [{
-            label: 'Tareas por Prioridad',
             data: Object.values(priorityCounts),
             backgroundColor: [
-                'rgba(76, 175, 80, 0.7)',  // Verde para Baja
-                'rgba(33, 150, 243, 0.7)',  // Azul para Media
-                'rgba(255, 153, 20, 0.7)',  // Naranja para Alta
-                'rgba(244, 67, 54, 0.7)'    // Rojo para Urgente
-            ],
-            borderColor: [
-                'rgba(76, 175, 80, 1)',
-                'rgba(33, 150, 243, 1)',
-                'rgba(255, 153, 20, 1)',
-                'rgba(244, 67, 54, 1)'
+                '#3498db',  // Baja - Azul
+                '#f39c12',  // Media - Naranja
+                '#e67e22',  // Alta - Naranja oscuro
+                '#e74c3c'   // Urgente - Rojo
             ],
             borderWidth: 1
         }]
@@ -974,24 +1233,28 @@ function renderPriorityChart() {
     }
     
     // Crear nuevo gráfico
-    window.priorityChart = new Chart(canvas, {
-        type: 'pie',
-        data: data,
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'top',
-                },
-                title: {
-                    display: true,
-                    text: 'Distribución de Tareas por Prioridad'
+    try {
+        window.priorityChart = new Chart(canvas, {
+            type: 'pie',
+            data: data,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Distribución de Tareas por Prioridad'
+                    }
                 }
             }
-        }
-    });
-    
-    console.log('Gráfico de prioridad renderizado correctamente');
+        });
+        console.log('Gráfico de prioridad renderizado correctamente');
+    } catch (error) {
+        console.error('Error al renderizar gráfico de prioridad:', error);
+        canvas.parentNode.innerHTML = '<div class="chart-error">Error al cargar el gráfico. Asegúrate de que Chart.js esté cargado correctamente.</div>';
+    }
 }
 
 function renderTypeChart() {
@@ -1209,159 +1472,8 @@ function renderTasksEvolutionChart() {
     console.log('Gráfico de evolución renderizado correctamente');
 }
 
-// Función para verificar y volver a aplicar los event listeners críticos
-function ensureEventListeners() {
-    console.log('Verificando event listeners críticos...');
-    
-    // Formulario principal
-    const taskForm = document.getElementById('taskForm');
-    if (taskForm) {
-        // Clonar el formulario para eliminar event listeners anteriores
-        const newForm = taskForm.cloneNode(true);
-        taskForm.parentNode.replaceChild(newForm, taskForm);
-        
-        // Agregar nuevamente el event listener
-        newForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            try {
-                handleFormSubmit(e);
-            } catch (error) {
-                console.error('Error en handleFormSubmit:', error);
-                showNotification('Error al procesar el formulario', 'error');
-            }
-            return false;
-        });
-        console.log('Event listener de formulario reconfigurado');
-    }
-    
-    // Botón de actualización
-    const updateTaskBtn = document.getElementById('updateTask');
-    if (updateTaskBtn) {
-        updateTaskBtn.onclick = handleTaskUpdate;
-        console.log('Event listener de botón de actualización reconfigurado');
-    }
-    
-    // Filtros de la vista principal
-    const filterStatus = document.getElementById('filterStatus');
-    const filterPriority = document.getElementById('filterPriority');
-    
-    if (filterStatus) {
-        filterStatus.onchange = applyFilters;
-        console.log('Event listener de filtro de estado reconfigurado');
-    }
-    
-    if (filterPriority) {
-        filterPriority.onchange = applyFilters;
-        console.log('Event listener de filtro de prioridad reconfigurado');
-    }
-    
-    // Filtros de la vista de lista
-    setupListFilters();
-    
-    // Navegación del calendario
-    setupCalendarNavigation();
-    
-    // Botón de prueba
-    const testBtn = document.getElementById('test-btn');
-    if (testBtn) {
-        testBtn.onclick = function() {
-            try {
-                // Crear tarea de prueba
-                const taskData = {
-                    id: Date.now().toString(),
-                    type: 'Desarrollo',
-                    report: 'Tarea de prueba',
-                    description: 'Esta es una tarea de prueba creada automáticamente para verificar el funcionamiento del sistema.',
-                    date: new Date().toISOString().split('T')[0],
-                    status: 'Pendiente',
-                    dependency: '',
-                    priority: 'Media'
-                };
-                
-                // Agregar tarea
-                tasks.push(taskData);
-                saveTasks();
-                renderTasks();
-                updateDependencyOptions();
-                
-                // Actualizar otras vistas si están activas
-                const activeTab = document.querySelector('.tab-btn.active');
-                if (activeTab) {
-                    const tabId = activeTab.getAttribute('data-tab');
-                    if (tabId === 'tab-kanban') {
-                        renderKanbanBoard();
-                    } else if (tabId === 'tab-list') {
-                        renderTasksList();
-                    } else if (tabId === 'tab-calendar') {
-                        renderCalendar();
-                    } else if (tabId === 'tab-dashboard') {
-                        renderDashboard();
-                    }
-                }
-                
-                // Mostrar notificación
-                showNotification('Tarea de prueba agregada correctamente', 'success');
-            } catch (error) {
-                console.error('Error al agregar tarea de prueba:', error);
-                showNotification('Error al agregar tarea de prueba', 'error');
-            }
-        };
-        console.log('Event listener de botón de prueba reconfigurado');
-    }
-    
-    console.log('Event listeners críticos verificados y reconfigurados');
-}
-
-// Extiende la función de inicialización para incluir las nuevas características
-function extendedInitApp() {
-    console.log('Iniciando extensiones de la aplicación...');
-    
-    // Asegurar que los event listeners críticos estén configurados
-    ensureEventListeners();
-    
-    // Inicializar el sistema de pestañas
-    initTabSystem();
-    
-    // Actualizar app status para indicar que las nuevas vistas están disponibles
-    const appStatus = document.getElementById('app-status');
-    if (appStatus) {
-        appStatus.innerHTML = '<span style="color: #4CAF50; font-weight: bold;">Funcionando con todas las vistas</span>';
-    }
-    
-    console.log('Extensiones de la aplicación inicializadas correctamente');
-}
-
-// Extender la función original de inicialización
-const originalInitApp = window.initApp;
-window.initApp = function() {
-    // Llamar a la función original primero
-    if (typeof originalInitApp === 'function') {
-        originalInitApp();
-    }
-    
-    // Luego inicializar nuestras extensiones
-    extendedInitApp();
-};
-
-// Asegurarnos de que nuestras extensiones se inicialicen incluso si la aplicación ya se ha cargado
-document.addEventListener('DOMContentLoaded', function() {
-    // Si la aplicación ya está inicializada, ejecutar nuestras extensiones
-    setTimeout(extendedInitApp, 500);
-});
-
-// Si el documento ya está cargado, ejecutar directamente
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    setTimeout(extendedInitApp, 500);
-}
-
-// Hacer disponible la función globalmente
+// Hacer disponibles las funciones principales globalmente
 window.renderKanbanBoard = renderKanbanBoard;
-
-// Hacer disponible la función globalmente
 window.renderTasksList = renderTasksList;
-
-// Hacer disponible la función globalmente
 window.renderCalendar = renderCalendar;
-
-// Hacer disponible la función globalmente
 window.renderDashboard = renderDashboard;
